@@ -1,59 +1,81 @@
 package com.cinema;
 
 import com.cinema.model.Cinema;
+import com.cinema.model.Seat;
 import com.cinema.service.BookingService;
 import com.cinema.store.BookingStore;
 import com.cinema.utils.CliUtils;
 
 import java.util.ArrayList;
-import java.util.Scanner;
+import java.util.List;
+import java.util.Objects;
 
 public class TicketingSystem {
-    private static final Scanner scanner = new Scanner(System.in);
-
+    private BookingService bookingService;
+    private Cinema cinema;
     void startTicketingSystem() {
-        System.out.println("Please define movie title and seating map in [Title] [Row] [SeatsPerRow] format:");
-        String input = scanner.nextLine();
-        String[] parts = input.split(" ");
-        Cinema cinema = null;
-        if (parts.length == 3) {
-            String movieTitle = parts[0];
-            int rows = Integer.parseInt(parts[1]);
-            int seatsPerRow = Integer.parseInt(parts[2]);
-            if (rows > 26 || seatsPerRow > 50) {
-                System.out.println("Exceeded maximum limits: 26 rows and 50 seats per rows.");
-            }
-            boolean[][] seatingArr = new boolean[rows][seatsPerRow];
-            for (int i = 0; i < rows; i++) {
-                for (int j = 0; j < seatsPerRow; j++) {
-                    seatingArr[i][j] = false;
-                }
-            }
-            cinema = new Cinema(movieTitle, rows, seatsPerRow, seatingArr);
+        cinema = CliUtils.promptCinemaSetup();
+        if (cinema == null) {
+            System.out.println("Cinema setup cancelled. Exiting...");
+            return;
         }
 
-        if (cinema != null) {
-            BookingStore bookingStore = new BookingStore(new ArrayList<>());
-            BookingService bookingService = new BookingService(cinema, bookingStore);
-            while (true) {
-                CliUtils.displayMainMenu(cinema.getTitle(), cinema.getAvailableSeats());
-                Scanner scanner = new Scanner(System.in);
-                String selectedOption = scanner.nextLine();
-                switch (selectedOption) {
-                    case "1":
-                        bookingService.allocateDefaultSeats();
-                        break;
-                    case "2":
-                        bookingService.checkBookings();
-                        break;
-                    case "3":
-                        System.out.println("Thank you for using the Cinema system. Bye!");
-                        return;
-                    default:
-                        System.out.println("Invalid selection. Please try again.");
+        BookingStore bookingStore = new BookingStore(new ArrayList<>());
+        bookingService = new BookingService(cinema, bookingStore);
+        boolean running = true;
+        while (running) {
+            int seatsAvailable = cinema.getAvailableSeats();
+            CliUtils.displayMainMenu(cinema.getTitle(), seatsAvailable);
+            int option = CliUtils.promptMenuSelection();
+            switch (option) {
+                case 1 -> handleBookingFlow();
+                case 2 -> handleCheckBookings();
+                case 3 -> {
+                    System.out.println("Thank you for using GIC Cinemas. Goodbye!");
+                    running = false;
                 }
+                default -> System.out.println("Invalid option. Please try again.");
             }
         }
+    }
+
+    private void handleCheckBookings() {
+        String id = CliUtils.promptBookingId();
+        String bookingId = bookingService.checkBookings(id);
+        if (Objects.nonNull(bookingId)) {
+            System.out.println("Booking ID: " + bookingId);
+            CliUtils.display(cinema, bookingService.getAllBookings(), id);
+        } else {
+            System.out.println("No bookings found for the given ID");
+        }
+    }
+
+    private void handleBookingFlow() {
+        int ticketCount = CliUtils.promptTicketCount();
+        if (ticketCount <= 0) {
+            return;
+        }
+
+        if (!bookingService.canBook(ticketCount)) {
+            System.out.println(String.format("Sorry, there are only %d seats available.", bookingService.getAvailableSeats()));
+            return;
+        }
+
+        List<Seat> allocatedSeats = bookingService.allocateDefaultSeats(ticketCount);
+        CliUtils.display(cinema, bookingService.getAllBookings(), "");
+        List<Seat> newSeats = allocatedSeats;
+        String bookingId = null;
+        while (Objects.isNull(bookingId)) {
+            Seat seat = CliUtils.promptSeatSelection(cinema.getNumOfRows());
+            if (seat != null) {
+                newSeats = bookingService.allocatedSeatsFromPosition(seat, ticketCount, newSeats);
+                CliUtils.display(cinema, bookingService.getAllBookings(), "");
+                continue;
+            }
+            bookingId = bookingService.confirmBooking(newSeats);
+        }
+        System.out.println(String.format("Booking id: %s is confirmed.", bookingId));
+        CliUtils.display(cinema, bookingService.getAllBookings(), "");
     }
 
     public static void main(String[] args) {

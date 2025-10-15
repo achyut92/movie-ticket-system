@@ -6,11 +6,11 @@ public class Cinema {
     private int seatsPerRow;
     private boolean[][] seating;
 
-    public Cinema(String title, int numOfRows, int seatsPerRow, boolean[][] seating) {
+    public Cinema(String title, int numOfRows, int seatsPerRow) {
         this.title = title;
         this.numOfRows = numOfRows;
         this.seatsPerRow = seatsPerRow;
-        this.seating = seating;
+        intializeSeatingArrangement();
     }
 
     public String getTitle() {
@@ -63,5 +63,15 @@ public class Cinema {
 
     public void setSeatUnoccupied(int row, int col) {
         this.seating[row][col] = false;
+    }
+
+    private void intializeSeatingArrangement() {
+        boolean[][] seatingArr = new boolean[this.numOfRows][this.seatsPerRow];
+        for (int i = 0; i < this.numOfRows; i++) {
+            for (int j = 0; j < this.seatsPerRow; j++) {
+                seatingArr[i][j] = false;
+            }
+        }
+        this.seating = seatingArr;
     }
 }

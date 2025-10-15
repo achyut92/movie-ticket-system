@@ -1,10 +1,8 @@
 package com.cinema.store;
 
 import com.cinema.model.Booking;
-import com.cinema.model.Seat;
 
 import java.util.List;
-import java.util.Map;
 
 public class BookingStore {
     List<Booking> bookings;
